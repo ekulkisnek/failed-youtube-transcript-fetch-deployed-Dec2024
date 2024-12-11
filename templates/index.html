@@ -84,26 +84,7 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- YouTube IFrame API -->
-    <script src="https://www.youtube.com/iframe_api"></script>
-    
     <script>
-        let player;
-        
-        function onYouTubeIframeAPIReady() {
-            player = new YT.Player('player', {
-                height: '1',
-                width: '1',
-                events: {
-                    'onReady': onPlayerReady
-                }
-            });
-        }
-
-        function onPlayerReady(event) {
-            // Player is ready
-        }
-
         function getVideoId(url) {
             const patterns = [
                 /(?:v=|\/)([0-9A-Za-z_-]{11}).*/,
@@ -154,22 +135,35 @@
                 }
 
                 try {
-                    // Load video and get captions
-                    player.loadVideoById(videoId);
-                    const tracks = player.getOptions('captions');
-                    const track = tracks && tracks.length > 0 ? tracks[0] : null;
+                    const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`);
+                    if (!response.ok) throw new Error('Failed to fetch video page');
                     
-                    if (!track) {
+                    const html = await response.text();
+                    const captionsMatch = html.match(/"captionTracks":\[(.*?)\]/);
+                    
+                    if (!captionsMatch) {
                         throw new Error('No captions available for this video');
                     }
-
-                    // Get transcript data
-                    const transcript = await player.getTranscript();
-                    const formattedTranscript = transcript
-                        .map(entry => entry.text)
+                    
+                    const captions = JSON.parse(`[${captionsMatch[1]}]`);
+                    const englishCaptions = captions.find(c => c.languageCode === 'en');
+                    
+                    if (!englishCaptions) {
+                        throw new Error('No English captions available');
+                    }
+                    
+                    const transcriptResponse = await fetch(englishCaptions.baseUrl);
+                    if (!transcriptResponse.ok) throw new Error('Failed to fetch transcript');
+                    
+                    const transcriptText = await transcriptResponse.text();
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(transcriptText, 'text/xml');
+                    
+                    const transcript = Array.from(xmlDoc.getElementsByTagName('text'))
+                        .map(text => text.textContent.trim())
                         .join('\n');
                     
-                    transcriptText.textContent = formattedTranscript;
+                    transcriptText.textContent = transcript;
                     transcriptContainer.classList.remove('d-none');
                     
                 } catch (error) {
@@ -177,8 +171,6 @@
                     errorMessage.classList.remove('d-none');
                 } finally {
                     loadingSpinner.classList.add('d-none');
-                    // Stop the video from playing
-                    player.stopVideo();
                 }
             });
         });
