@@ -39,7 +39,7 @@ def get_transcript(video_id):
     """Fetch transcript for a given video ID."""
     try:
         logger.debug(f"Attempting to fetch transcript for video ID: {video_id}")
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id, proxies={'http': None, 'https': None})
         
         try:
             logger.debug("Attempting to find English transcript")
