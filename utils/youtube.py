@@ -39,12 +39,20 @@ def get_transcript(video_id):
     """Fetch transcript for a given video ID."""
     try:
         logger.debug(f"Attempting to fetch transcript for video ID: {video_id}")
-        # Try direct transcript fetch first
+        # Try manual transcripts first
         try:
-            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
-            return transcript
-        except Exception as direct_error:
-            logger.debug(f"Direct fetch failed: {str(direct_error)}")
+            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            transcript = transcript_list.find_manually_created_transcript(['en'])
+            return transcript.fetch()
+        except Exception as manual_error:
+            logger.debug(f"Manual transcript fetch failed: {str(manual_error)}")
+            
+            # Try direct transcript fetch as fallback
+            try:
+                transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
+                return transcript
+            except Exception as direct_error:
+                logger.debug(f"Direct fetch failed: {str(direct_error)}")
             
         # Fall back to list_transcripts approach
         transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
