@@ -45,6 +45,7 @@ def get_transcript(video_id):
             logger.debug("Attempting to find English transcript")
             transcript = transcript_list.find_transcript(['en'])
             logger.debug("Found English transcript")
+            transcript._settings['client'] = 'ANDROID_MUSIC'  # Force client type
         except NoTranscriptFound:
             logger.debug("No English transcript found, attempting translation")
             # Get first available transcript and translate to English
