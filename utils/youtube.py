@@ -39,13 +39,19 @@ def get_transcript(video_id):
     """Fetch transcript for a given video ID."""
     try:
         logger.debug(f"Attempting to fetch transcript for video ID: {video_id}")
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id, proxies={'http': None, 'https': None})
-        
+        # Try direct transcript fetch first
+        try:
+            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
+            return transcript
+        except Exception as direct_error:
+            logger.debug(f"Direct fetch failed: {str(direct_error)}")
+            
+        # Fall back to list_transcripts approach
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
         try:
             logger.debug("Attempting to find English transcript")
             transcript = transcript_list.find_transcript(['en'])
             logger.debug("Found English transcript")
-            transcript._settings['client'] = 'ANDROID_MUSIC'  # Force client type
         except NoTranscriptFound:
             logger.debug("No English transcript found, attempting translation")
             # Get first available transcript and translate to English
