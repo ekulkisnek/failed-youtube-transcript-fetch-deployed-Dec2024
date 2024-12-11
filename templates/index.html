@@ -34,6 +34,9 @@
             background-color: #6c757d;
             color: white;
         }
+        #player {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -71,13 +74,51 @@
                     </div>
                     <div id="transcriptText" class="transcript-box"></div>
                 </div>
+                
+                <!-- Hidden player container -->
+                <div id="player"></div>
             </div>
         </div>
     </div>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- YouTube IFrame API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    
     <script>
+        let player;
+        
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+                height: '1',
+                width: '1',
+                events: {
+                    'onReady': onPlayerReady
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            // Player is ready
+        }
+
+        function getVideoId(url) {
+            const patterns = [
+                /(?:v=|\/)([0-9A-Za-z_-]{11}).*/,
+                /(?:embed\/)([0-9A-Za-z_-]{11})/,
+                /(?:youtu\.be\/)([0-9A-Za-z_-]{11})/
+            ];
+
+            for (const pattern of patterns) {
+                const match = url.match(pattern);
+                if (match) return match[1];
+            }
+
+            return null;
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const form = document.getElementById('transcriptForm');
             const urlInput = document.getElementById('youtubeUrl');
@@ -87,7 +128,6 @@
             const transcriptText = document.getElementById('transcriptText');
             const copyButton = document.getElementById('copyButton');
 
-            // Handle copy functionality
             copyButton.addEventListener('click', function() {
                 navigator.clipboard.writeText(transcriptText.textContent).then(() => {
                     const originalText = copyButton.innerHTML;
@@ -101,27 +141,31 @@
             form.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 
-                // Reset UI state
                 errorMessage.classList.add('d-none');
                 transcriptContainer.classList.add('d-none');
                 loadingSpinner.classList.remove('d-none');
                 
+                const videoId = getVideoId(urlInput.value);
+                if (!videoId) {
+                    errorMessage.textContent = 'Invalid YouTube URL';
+                    errorMessage.classList.remove('d-none');
+                    loadingSpinner.classList.add('d-none');
+                    return;
+                }
+
                 try {
-                    const response = await fetch('/get_transcript', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                        body: `url=${encodeURIComponent(urlInput.value)}`
-                    });
+                    // Load video and get captions
+                    player.loadVideoById(videoId);
+                    const tracks = player.getOptions('captions');
+                    const track = tracks && tracks.length > 0 ? tracks[0] : null;
                     
-                    const data = await response.json();
-                    
-                    if (!response.ok) {
-                        throw new Error(data.error || 'Failed to fetch transcript');
+                    if (!track) {
+                        throw new Error('No captions available for this video');
                     }
-                    
-                    const formattedTranscript = data.transcript
+
+                    // Get transcript data
+                    const transcript = await player.getTranscript();
+                    const formattedTranscript = transcript
                         .map(entry => entry.text)
                         .join('\n');
                     
@@ -129,10 +173,12 @@
                     transcriptContainer.classList.remove('d-none');
                     
                 } catch (error) {
-                    errorMessage.textContent = error.message;
+                    errorMessage.textContent = error.message || 'Failed to fetch transcript';
                     errorMessage.classList.remove('d-none');
                 } finally {
                     loadingSpinner.classList.add('d-none');
+                    // Stop the video from playing
+                    player.stopVideo();
                 }
             });
         });
