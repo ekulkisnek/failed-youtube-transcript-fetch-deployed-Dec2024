@@ -1,6 +1,16 @@
 import re
+import http.client
+import urllib3
 from urllib.parse import urlparse, parse_qs
 from youtube_transcript_api import YouTubeTranscriptApi
+
+# Custom request handler to work in Replit's environment
+class ReplitRequestHandler:
+    def __init__(self):
+        self.pool_manager = urllib3.PoolManager(maxsize=10)
+        
+    def get(self, url, **kwargs):
+        return self.pool_manager.request('GET', url, **kwargs)
 
 def get_video_id(url):
     """Extract video ID from YouTube URL."""
@@ -33,7 +43,10 @@ def get_video_id(url):
 def get_transcript(video_id):
     """Fetch transcript for a given video ID."""
     try:
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        transcript_list = YouTubeTranscriptApi.list_transcripts(
+            video_id,
+            http_client=ReplitRequestHandler()
+        )
         
         # Try to get English transcript first
         try:
