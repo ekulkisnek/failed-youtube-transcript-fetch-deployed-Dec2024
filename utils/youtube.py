@@ -1,16 +1,11 @@
 import re
-import http.client
-import urllib3
+import logging
 from urllib.parse import urlparse, parse_qs
-from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled, VideoUnavailable
 
-# Custom request handler to work in Replit's environment
-class ReplitRequestHandler:
-    def __init__(self):
-        self.pool_manager = urllib3.PoolManager(maxsize=10)
-        
-    def get(self, url, **kwargs):
-        return self.pool_manager.request('GET', url, **kwargs)
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 def get_video_id(url):
     """Extract video ID from YouTube URL."""
@@ -43,19 +38,35 @@ def get_video_id(url):
 def get_transcript(video_id):
     """Fetch transcript for a given video ID."""
     try:
-        transcript_list = YouTubeTranscriptApi.list_transcripts(
-            video_id,
-            http_client=ReplitRequestHandler()
-        )
+        logger.debug(f"Attempting to fetch transcript for video ID: {video_id}")
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
         
-        # Try to get English transcript first
         try:
+            logger.debug("Attempting to find English transcript")
             transcript = transcript_list.find_transcript(['en'])
-        except:
-            # If English not available, get first available transcript
-            transcript = transcript_list.find_transcript(['en']).translate('en')
+            logger.debug("Found English transcript")
+        except NoTranscriptFound:
+            logger.debug("No English transcript found, attempting translation")
+            # Get first available transcript and translate to English
+            available_transcripts = transcript_list.manual_generated_transcripts
+            if not available_transcripts:
+                raise Exception("No transcripts available for this video")
+            
+            first_lang = list(available_transcripts.keys())[0]
+            logger.debug(f"Translating transcript from {first_lang} to English")
+            transcript = transcript_list.find_transcript([first_lang]).translate('en')
             
         return transcript.fetch()
         
+    except VideoUnavailable:
+        logger.error(f"Video {video_id} is unavailable")
+        raise Exception("The video is unavailable or private")
+    except TranscriptsDisabled:
+        logger.error(f"Transcripts are disabled for video {video_id}")
+        raise Exception("Transcripts are disabled for this video")
+    except NoTranscriptFound:
+        logger.error(f"No transcript found for video {video_id}")
+        raise Exception("No transcript available for this video")
     except Exception as e:
+        logger.error(f"Unexpected error fetching transcript: {str(e)}", exc_info=True)
         raise Exception(f"Could not fetch transcript: {str(e)}")
