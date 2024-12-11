@@ -13,6 +13,23 @@ app.secret_key = "transcript_fetcher_secret_key"
 def index():
     return render_template("index.html")
 
+@app.route("/test_youtube")
+def test_youtube():
+    import requests
+    try:
+        response = requests.get('https://www.youtube.com')
+        return jsonify({
+            "status": "success",
+            "code": response.status_code,
+            "headers": dict(response.headers)
+        })
+    except Exception as e:
+        logger.error(f"YouTube test failed: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "error": str(e)
+        }), 500
+
 @app.route("/get_transcript", methods=["POST"])
 def fetch_transcript():
     try:
