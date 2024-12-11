@@ -1,9 +1,5 @@
-import logging
-from flask import Flask, render_template
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+from flask import Flask, render_template
 
 app = Flask(__name__)
 
