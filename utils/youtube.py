@@ -40,14 +40,19 @@ def get_transcript(video_id):
     try:
         logger.debug(f"Attempting to fetch transcript for video ID: {video_id}")
         
-        # Try direct fetch first
+        proxies = {
+            'http': None,
+            'https': None
+        }
+        
+        # Try direct fetch first with proxy settings
         try:
-            return YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
+            return YouTubeTranscriptApi.get_transcript(video_id, languages=['en'], proxies=proxies)
         except Exception as e:
             logger.debug(f"Direct fetch failed: {str(e)}")
             
             # Fall back to list_transcripts approach
-            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id, proxies=proxies)
             try:
                 transcript = transcript_list.find_generated_transcript(['en'])
                 return transcript.fetch()
