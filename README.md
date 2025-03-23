@@ -3,6 +3,8 @@
 
 A Flask-based web application that allows users to fetch transcripts from YouTube videos easily. Simply paste a YouTube URL and get the video's transcript in a clean, readable format.
 
+![image](image.png)
+
 ## Features
 
 - Simple and intuitive user interface
